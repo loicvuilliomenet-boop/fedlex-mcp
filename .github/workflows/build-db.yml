@@ -1,0 +1,152 @@
+name: Build & Release Fedlex SQLite Database
+
+on:
+  schedule:
+    # Every Monday at 03:00 UTC — Fedlex publishes new consolidations weekly
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+    inputs:
+      language:
+        description: "Language to ingest (de / fr / it)"
+        required: false
+        default: "de"
+      concurrency:
+        description: "Parallel HTML fetches"
+        required: false
+        default: "8"
+      force_release:
+        description: "Create release even if no drift"
+        required: false
+        default: "false"
+        type: boolean
+
+permissions:
+  contents: write   # needed to create releases and upload assets
+
+jobs:
+  drift-check:
+    name: Drift Detection
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      drift: ${{ steps.check.outputs.drift }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download latest database release (if any)
+        id: download
+        continue-on-error: true
+        run: |
+          mkdir -p data
+          TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null || echo "")
+          if [ -n "$TAG" ]; then
+            echo "Latest release tag: $TAG"
+            gh release download "$TAG" --pattern "fedlex.sqlite.gz" --dir data/ 2>/dev/null || true
+            if [ -f data/fedlex.sqlite.gz ]; then
+              gunzip data/fedlex.sqlite.gz
+              echo "Database downloaded and decompressed."
+            fi
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Check for drift
+        id: check
+        run: |
+          if [ ! -f data/fedlex.sqlite ]; then
+            echo "No existing database — full build required."
+            echo "drift=true" >> "$GITHUB_OUTPUT"
+          else
+            npx tsx scripts/drift.ts --lang ${{ github.event.inputs.language || 'de' }} && \
+              echo "drift=false" >> "$GITHUB_OUTPUT" || \
+              echo "drift=true"  >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    name: Build Database
+    needs: drift-check
+    if: needs.drift-check.outputs.drift == 'true' || github.event.inputs.force_release == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180   # allow up to 3h for full ingest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Run ingestion
+        run: |
+          mkdir -p data
+          npx tsx scripts/ingest.ts \
+            --lang ${{ github.event.inputs.language || 'de' }} \
+            --concurrency ${{ github.event.inputs.concurrency || '8' }} \
+            --db ./data/fedlex.sqlite
+        env:
+          FEDLEX_DB_PATH: ./data/fedlex.sqlite
+
+      - name: Show ingestion report
+        run: cat data/fedlex-report.json 2>/dev/null || echo "No report found"
+
+      - name: Compress database
+        run: |
+          mkdir -p artifacts
+          gzip -k data/fedlex.sqlite -c > artifacts/fedlex.sqlite.gz
+          ls -lh artifacts/
+
+      - name: Get release metadata
+        id: meta
+        run: |
+          DATE=$(date -u +'%Y-%m-%d')
+          STATS=$(cat data/fedlex-report.json 2>/dev/null || echo '{}')
+          echo "date=$DATE" >> "$GITHUB_OUTPUT"
+          echo "stats=$STATS" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "db-${{ steps.meta.outputs.date }}"
+          name: "Fedlex Database — ${{ steps.meta.outputs.date }}"
+          make_latest: true
+          body: |
+            ## Fedlex SQLite Database — ${{ steps.meta.outputs.date }}
+
+            Automated weekly build. Download `fedlex.sqlite.gz` and decompress to use.
+
+            ### What's included
+            | Category | Count |
+            |---|---|
+            | Federal Laws (SR corpus) | from ingestion report |
+            | Provisions (FTS5 searchable) | from ingestion report |
+            | Legal Definitions | extracted from statute text |
+            | EU Cross-References | directives and regulations |
+
+            ### Usage with fedlex-mcp
+            ```bash
+            gunzip fedlex.sqlite.gz
+            FEDLEX_DB_PATH=./fedlex.sqlite node dist/index.js --http
+            ```
+
+            ### Ingestion report
+            ```json
+            ${{ steps.meta.outputs.stats }}
+            ```
+
+            > Data sourced from [Fedlex](https://fedlex.data.admin.ch) (Swiss Federal Chancellery). Not legal advice.
+          files: |
+            artifacts/fedlex.sqlite.gz
+            data/fedlex-report.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

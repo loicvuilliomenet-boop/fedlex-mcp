@@ -126,4 +126,58 @@ router.get("/citations/:id(*)", standardLimiter, async (req: Request, res: Respo
   }
 });
 
+// ---------------------------------------------------------------------------
+// DB-backed routes (require local SQLite)
+// ---------------------------------------------------------------------------
+import {
+  searchProvisions,
+  lookupDefinition,
+  findEuReferences,
+  getDbStats,
+} from "./db-tools.js";
+
+// GET /api/db/search?q=Datenschutzbeauftragter&limit=20&sr=235.1
+router.get("/db/search", standardLimiter, (req: Request, res: Response) => {
+  const { q, limit = "20", sr } = req.query as Record<string, string>;
+  if (!q) return sendError(res, 400, "Missing required query parameter: q");
+  try {
+    const result = searchProvisions({
+      query:     q,
+      limit:     Math.min(parseInt(limit, 10) || 20, 100),
+      sr_number: sr,
+    });
+    res.json(result);
+  } catch (e) { logError(req.path, e); sendError(res, 500, (e as Error).message); }
+});
+
+// GET /api/db/definitions?term=personendaten&limit=10
+router.get("/db/definitions", standardLimiter, (req: Request, res: Response) => {
+  const { term, limit = "20" } = req.query as Record<string, string>;
+  if (!term) return sendError(res, 400, "Missing required query parameter: term");
+  try {
+    const result = lookupDefinition({ term, limit: Math.min(parseInt(limit, 10) || 20, 50) });
+    res.json(result);
+  } catch (e) { logError(req.path, e); sendError(res, 500, (e as Error).message); }
+});
+
+// GET /api/db/eu-refs?id=2016/679&type=Directive&limit=30
+router.get("/db/eu-refs", standardLimiter, (req: Request, res: Response) => {
+  const { id, type, limit = "30" } = req.query as Record<string, string>;
+  try {
+    const result = findEuReferences({
+      eu_identifier: id,
+      eu_type:       type as "Directive" | "Regulation" | "Decision" | "Unknown" | undefined,
+      limit:         Math.min(parseInt(limit, 10) || 30, 100),
+    });
+    res.json(result);
+  } catch (e) { logError(req.path, e); sendError(res, 500, (e as Error).message); }
+});
+
+// GET /api/db/stats
+router.get("/db/stats", standardLimiter, (_req: Request, res: Response) => {
+  try {
+    res.json(getDbStats());
+  } catch (e) { logError("/db/stats", e); sendError(res, 503, (e as Error).message); }
+});
+
 export default router;

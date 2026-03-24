@@ -18,6 +18,12 @@ import {
   getVersions,
   getCitations,
 } from "./tools.js";
+import {
+  searchProvisions,
+  lookupDefinition,
+  findEuReferences,
+  getDbStats,
+} from "./db-tools.js";
 
 // ---------------------------------------------------------------------------
 // Tool registration (shared between stdio and per-connection HTTP servers)
@@ -215,6 +221,86 @@ s.tool(
     };
   }
 );
+
+  // ---- DB-backed tools (require local SQLite, built by 'npm run ingest') ----
+
+  s.tool(
+    "search_provisions",
+    "Full-text search across all ~100,000 article provisions in the local Fedlex SQLite database. " +
+      "Much faster and more precise than title-only search. " +
+      "Requires the database to have been built with 'npm run ingest' or downloaded from releases.",
+    {
+      query: z.string().describe("Search terms (phrase or keywords)"),
+      limit: z.number().int().min(1).max(100).optional().default(20)
+        .describe("Maximum results to return"),
+      sr_number: z.string().optional()
+        .describe("Restrict search to a specific law (SR number, e.g. '311.0')"),
+    },
+    async (params) => {
+      try {
+        const result = searchProvisions(params);
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      } catch (e) {
+        return { content: [{ type: "text", text: `Error: ${(e as Error).message}` }], isError: true };
+      }
+    }
+  );
+
+  s.tool(
+    "lookup_definition",
+    "Search the extracted legal definitions database for a term. " +
+      "Returns all places in Swiss federal law where the term is formally defined.",
+    {
+      term: z.string().describe("Legal term to look up (partial match supported)"),
+      limit: z.number().int().min(1).max(50).optional().default(20)
+        .describe("Maximum results"),
+    },
+    async (params) => {
+      try {
+        const result = lookupDefinition(params);
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      } catch (e) {
+        return { content: [{ type: "text", text: `Error: ${(e as Error).message}` }], isError: true };
+      }
+    }
+  );
+
+  s.tool(
+    "find_eu_references",
+    "Find Swiss federal laws that implement or reference specific EU directives, regulations, or decisions. " +
+      "Pass an EU act identifier (e.g. '2016/679' for GDPR) or filter by type.",
+    {
+      eu_identifier: z.string().optional()
+        .describe("EU act identifier or partial number, e.g. '2016/679', '95/46', '2018/1725'"),
+      eu_type: z.enum(["Directive", "Regulation", "Decision", "Unknown"]).optional()
+        .describe("Filter by EU act type"),
+      limit: z.number().int().min(1).max(100).optional().default(30)
+        .describe("Maximum results"),
+    },
+    async (params) => {
+      try {
+        const result = findEuReferences(params);
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      } catch (e) {
+        return { content: [{ type: "text", text: `Error: ${(e as Error).message}` }], isError: true };
+      }
+    }
+  );
+
+  s.tool(
+    "get_db_stats",
+    "Return statistics about the local Fedlex SQLite database: number of laws, provisions, " +
+      "definitions, EU references, database size, and last ingestion timestamp.",
+    {},
+    async () => {
+      try {
+        const result = getDbStats();
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      } catch (e) {
+        return { content: [{ type: "text", text: `Error: ${(e as Error).message}` }], isError: true };
+      }
+    }
+  );
 
 } // end registerTools()
 

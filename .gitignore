@@ -6,3 +6,9 @@ dist/
 .env.*
 *.log
 .DS_Store
+# SQLite databases (distributed via GitHub Releases, not committed)
+data/*.sqlite
+data/*.sqlite-shm
+data/*.sqlite-wal
+data/*.gz
+data/*-report.json
