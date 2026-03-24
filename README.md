@@ -4,6 +4,8 @@ MCP server for Swiss federal legislation via [Fedlex](https://fedlex.data.admin.
 
 Queries the Fedlex SPARQL endpoint (`https://fedlex.data.admin.ch/sparqlendpoint`) to provide access to all Swiss federal acts, ordinances, and other legal texts in all four national languages (German, French, Italian, Romansh).
 
+> Experimental project. Not legal advice. Always verify against the official Fedlex source.
+
 ## Tools
 
 | Tool | Description |
