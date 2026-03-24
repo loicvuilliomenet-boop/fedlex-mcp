@@ -190,6 +190,109 @@ export function findEuReferences(params: {
 }
 
 // ---------------------------------------------------------------------------
+// Tool: get_article_citations — article-level citation graph from SQLite
+// ---------------------------------------------------------------------------
+export function getArticleCitations(params: {
+  sr_number:   string;
+  article_id?: string;
+  direction?:  "from" | "to" | "both";
+  limit?:      number;
+}) {
+  const db        = getDb();
+  const limit     = Math.min(params.limit ?? 50, 200);
+  const direction = params.direction ?? "both";
+
+  const outgoing: object[] = [];
+  const incoming: object[] = [];
+
+  if (direction === "from" || direction === "both") {
+    const conds: string[] = ["ac.from_sr_number = ?"];
+    const vals: unknown[] = [params.sr_number];
+    if (params.article_id) { conds.push("ac.from_article_id = ?"); vals.push(params.article_id); }
+    vals.push(limit);
+
+    const rows = db.prepare(`
+      SELECT ac.from_article_id, ac.to_sr_number, ac.to_article_id,
+             pf.article_number AS from_article_number,
+             pf.article_title  AS from_article_title,
+             pt.article_number AS to_article_number,
+             pt.article_title  AS to_article_title,
+             lt.title          AS to_law_title,
+             lt.abbreviation   AS to_abbreviation
+      FROM article_citations ac
+      LEFT JOIN provisions pf ON ac.from_provision_id = pf.id
+      LEFT JOIN provisions pt ON ac.to_provision_id   = pt.id
+      LEFT JOIN laws lt       ON lt.sr_number = ac.to_sr_number
+      WHERE ${conds.join(" AND ")}
+      ORDER BY ac.to_sr_number, ac.to_article_id
+      LIMIT ?
+    `).all(...vals) as Array<Record<string, string | null>>;
+
+    for (const r of rows) {
+      outgoing.push({
+        from_article_id:     r.from_article_id,
+        from_article_number: r.from_article_number ?? null,
+        from_article_title:  r.from_article_title  ?? null,
+        to_sr_number:        r.to_sr_number         ?? null,
+        to_article_id:       r.to_article_id        ?? null,
+        to_article_number:   r.to_article_number    ?? null,
+        to_article_title:    r.to_article_title     ?? null,
+        to_law_title:        r.to_law_title          ?? null,
+        to_abbreviation:     r.to_abbreviation       ?? null,
+      });
+    }
+  }
+
+  if (direction === "to" || direction === "both") {
+    const conds: string[] = ["ac.to_sr_number = ?"];
+    const vals: unknown[] = [params.sr_number];
+    if (params.article_id) { conds.push("ac.to_article_id = ?"); vals.push(params.article_id); }
+    vals.push(limit);
+
+    const rows = db.prepare(`
+      SELECT ac.to_article_id, ac.from_sr_number, ac.from_article_id,
+             pt.article_number AS to_article_number,
+             pt.article_title  AS to_article_title,
+             pf.article_number AS from_article_number,
+             pf.article_title  AS from_article_title,
+             lf.title          AS from_law_title,
+             lf.abbreviation   AS from_abbreviation
+      FROM article_citations ac
+      LEFT JOIN provisions pt ON ac.to_provision_id   = pt.id
+      LEFT JOIN provisions pf ON ac.from_provision_id = pf.id
+      LEFT JOIN laws lf       ON lf.sr_number = ac.from_sr_number
+      WHERE ${conds.join(" AND ")}
+      ORDER BY ac.from_sr_number, ac.from_article_id
+      LIMIT ?
+    `).all(...vals) as Array<Record<string, string | null>>;
+
+    for (const r of rows) {
+      incoming.push({
+        to_article_id:       r.to_article_id        ?? null,
+        to_article_number:   r.to_article_number    ?? null,
+        to_article_title:    r.to_article_title     ?? null,
+        from_sr_number:      r.from_sr_number        ?? null,
+        from_article_id:     r.from_article_id      ?? null,
+        from_article_number: r.from_article_number  ?? null,
+        from_article_title:  r.from_article_title   ?? null,
+        from_law_title:      r.from_law_title         ?? null,
+        from_abbreviation:   r.from_abbreviation     ?? null,
+      });
+    }
+  }
+
+  return {
+    sr_number:  params.sr_number,
+    article_id: params.article_id ?? null,
+    direction,
+    outgoing_count: outgoing.length,
+    incoming_count: incoming.length,
+    outgoing,
+    incoming,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Tool: get_db_stats — database statistics and last ingestion info
 // ---------------------------------------------------------------------------
 export function getDbStats() {
@@ -203,6 +306,10 @@ export function getDbStats() {
   const defs      = db.prepare("SELECT COUNT(*) AS n FROM definitions").get() as { n: number };
   const euRefs    = db.prepare("SELECT COUNT(*) AS n FROM eu_references").get() as { n: number };
   const uniqueEu  = db.prepare("SELECT COUNT(DISTINCT eu_identifier) AS n FROM eu_references").get() as { n: number };
+  let artCitCount = 0;
+  try {
+    artCitCount = (db.prepare("SELECT COUNT(*) AS n FROM article_citations").get() as { n: number }).n;
+  } catch { /* table not present in older DBs */ }
 
   const byType = db.prepare(`
     SELECT law_type, COUNT(*) AS n FROM laws GROUP BY law_type ORDER BY n DESC
@@ -229,14 +336,15 @@ export function getDbStats() {
       language:    lastRun?.language ?? "unknown",
     },
     counts: {
-      laws_total:        laws.n,
-      laws_in_force:     inForce.n,
-      laws_pdf_only:     pdfOnly.n,
-      laws_no_content:   noContent.n,
-      provisions:        provs.n,
-      definitions:       defs.n,
-      eu_references:     euRefs.n,
-      unique_eu_acts:    uniqueEu.n,
+      laws_total:          laws.n,
+      laws_in_force:       inForce.n,
+      laws_pdf_only:       pdfOnly.n,
+      laws_no_content:     noContent.n,
+      provisions:          provs.n,
+      definitions:         defs.n,
+      eu_references:       euRefs.n,
+      unique_eu_acts:      uniqueEu.n,
+      article_citations:   artCitCount,
     },
     laws_by_type: Object.fromEntries(byType.map((r) => [r.law_type, r.n])),
     last_ingestion: lastRun

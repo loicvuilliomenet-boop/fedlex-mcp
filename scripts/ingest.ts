@@ -141,6 +141,22 @@ CREATE TABLE IF NOT EXISTS sr_census (
   is_in_force      INTEGER NOT NULL DEFAULT 1,
   status           TEXT    NOT NULL DEFAULT 'unknown'
 );
+
+CREATE TABLE IF NOT EXISTS article_citations (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  from_provision_id INTEGER REFERENCES provisions(id) ON DELETE CASCADE,
+  to_provision_id   INTEGER REFERENCES provisions(id) ON DELETE SET NULL,
+  from_sr_number    TEXT    NOT NULL,
+  from_article_id   TEXT    NOT NULL,
+  to_sr_number      TEXT,
+  to_article_id     TEXT,
+  language          TEXT    NOT NULL DEFAULT 'fr'
+);
+
+CREATE INDEX IF NOT EXISTS idx_art_cite_from      ON article_citations(from_sr_number, from_article_id);
+CREATE INDEX IF NOT EXISTS idx_art_cite_to        ON article_citations(to_sr_number, to_article_id);
+CREATE INDEX IF NOT EXISTS idx_art_cite_from_prov ON article_citations(from_provision_id);
+CREATE INDEX IF NOT EXISTS idx_art_cite_to_prov   ON article_citations(to_provision_id);
 `;
 
 // ---------------------------------------------------------------------------
@@ -295,6 +311,34 @@ function extractEuRefs(text: string): EuRef[] {
 }
 
 // ---------------------------------------------------------------------------
+// Article-citation URI helpers
+// ---------------------------------------------------------------------------
+
+/** Extract the HTML article id (e.g. "art_1") from a Fedlex subdivision URI fragment. */
+function extractArticleId(subdivisionUri: string): string | null {
+  const hash = subdivisionUri.indexOf("#");
+  if (hash !== -1) {
+    const frag = subdivisionUri.slice(hash + 1);
+    return frag.length > 0 ? frag : null;
+  }
+  return null;
+}
+
+/**
+ * Extract the ConsolidationAbstract base URI from a subdivision URI.
+ * e.g. https://fedlex.data.admin.ch/eli/cc/1907/235_245_247/20230101/fr/html#art_1
+ *   → https://fedlex.data.admin.ch/eli/cc/1907/235_245_247
+ */
+function extractLawBaseUri(subdivisionUri: string): string | null {
+  const noFrag = subdivisionUri.split("#")[0];
+  // Match scheme://host/eli/<type>/<year>/<rest> — stop before the date segment
+  const m = noFrag.match(
+    /^(https?:\/\/[^/]+\/eli\/[^/]+\/[^/]+\/\d{4}\/[^/]+)/
+  );
+  return m ? m[1] : null;
+}
+
+// ---------------------------------------------------------------------------
 // Batch concurrency helper
 // ---------------------------------------------------------------------------
 async function inBatches<T>(
@@ -432,6 +476,35 @@ ORDER BY ?srUri DESC(?consDate)`;
     });
   }
   return latest;
+}
+
+// ---------------------------------------------------------------------------
+// Fetch article-level citations for a single law URI via SPARQL
+// ---------------------------------------------------------------------------
+async function fetchSubdivisionCitations(
+  lawUri: string
+): Promise<Array<{ fromSub: string; toSub: string }>> {
+  const q = `
+PREFIX jolux: <http://data.legilux.public.lu/resource/ontology/jolux#>
+
+SELECT ?fromSub ?toSub WHERE {
+  ?consolidation jolux:isMemberOf <${lawUri}> .
+  ?fromSub jolux:legalResourceSubdivisionIsPartOf ?consolidation .
+  ?citation jolux:citationFromLegalResource ?fromSub ;
+            jolux:citationToLegalResource ?toSub .
+}
+LIMIT 2000`;
+  try {
+    const r = await sparqlQuery(q);
+    return r.results.bindings
+      .map((b) => ({
+        fromSub: b.fromSub?.value ?? "",
+        toSub:   b.toSub?.value  ?? "",
+      }))
+      .filter((e) => e.fromSub && e.toSub);
+  } catch {
+    return [];
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -655,7 +728,71 @@ async function main() {
   db.exec("INSERT INTO provisions_fts(provisions_fts) VALUES('rebuild')");
   db.exec("ANALYZE");
 
-  // Step 6: Log ingestion run
+  // Step 6: Fetch article-level citation edges from SPARQL
+  console.log("\n🔗 Fetching article-level citation edges…");
+  let articleCitations = 0;
+
+  const insertArticleCitation = db.prepare(`
+    INSERT OR IGNORE INTO article_citations
+      (from_provision_id, to_provision_id, from_sr_number, from_article_id,
+       to_sr_number, to_article_id, language)
+    VALUES
+      (@fromProvisionId, @toProvisionId, @fromSrNumber, @fromArticleId,
+       @toSrNumber, @toArticleId, @language)`);
+
+  const getProvisionIdStmt = db.prepare(
+    `SELECT id FROM provisions WHERE sr_number = ? AND article_id = ? LIMIT 1`
+  );
+  const getLawBySrUri = db.prepare(
+    `SELECT sr_number FROM laws WHERE eli_uri = ? LIMIT 1`
+  );
+
+  await inBatches(toFetch, CONCURRENCY, async ({ law }) => {
+    const edges = await fetchSubdivisionCitations(law.uri);
+    if (edges.length === 0) return;
+
+    db.transaction(() => {
+      for (const { fromSub, toSub } of edges) {
+        const fromArticleId = extractArticleId(fromSub);
+        const toArticleId   = extractArticleId(toSub);
+        if (!fromArticleId || !toArticleId) continue;
+
+        const fromProvRow = getProvisionIdStmt.get(law.srNumber, fromArticleId) as
+          | { id: number }
+          | undefined;
+        const fromProvisionId = fromProvRow?.id ?? null;
+
+        const toLawBaseUri = extractLawBaseUri(toSub);
+        const toLawRow = toLawBaseUri
+          ? (getLawBySrUri.get(toLawBaseUri) as { sr_number: string } | undefined)
+          : undefined;
+        const toSrNumber = toLawRow?.sr_number ?? null;
+
+        const toProvRow = toSrNumber
+          ? (getProvisionIdStmt.get(toSrNumber, toArticleId) as
+              | { id: number }
+              | undefined)
+          : undefined;
+        const toProvisionId = toProvRow?.id ?? null;
+
+        insertArticleCitation.run({
+          fromProvisionId,
+          toProvisionId,
+          fromSrNumber:  law.srNumber,
+          fromArticleId,
+          toSrNumber,
+          toArticleId,
+          language: LANG,
+        });
+        articleCitations++;
+      }
+    })();
+    await new Promise((r) => setTimeout(r, 100));
+  });
+
+  console.log(`✅ Article citations ingested: ${articleCitations}`);
+
+  // Step 8: Log ingestion run
   const duration = (Date.now() - startTime) / 1000;
   db.prepare(`
     INSERT INTO ingestion_log
@@ -667,20 +804,21 @@ async function main() {
 
   db.close();
 
-  // Step 7: Write summary report
+  // Step 9: Write summary report
   const report = {
     run_at:    today,
     language:  LANG,
     db_path:   DB_PATH,
     stats: {
-      laws_total:        allLaws.length,
-      laws_ingested:     ingested,
-      laws_pdf_only:     pdfOnly.length,
-      laws_no_content:   noHtml.length,
-      laws_error:        errors,
-      provisions_total:  provisions,
-      definitions_total: definitions,
-      eu_refs_total:     euRefs,
+      laws_total:              allLaws.length,
+      laws_ingested:           ingested,
+      laws_pdf_only:           pdfOnly.length,
+      laws_no_content:         noHtml.length,
+      laws_error:              errors,
+      provisions_total:        provisions,
+      definitions_total:       definitions,
+      eu_refs_total:           euRefs,
+      article_citations_total: articleCitations,
     },
     duration_seconds: Math.round(duration),
   };

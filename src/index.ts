@@ -23,6 +23,7 @@ import {
   lookupDefinition,
   findEuReferences,
   getDbStats,
+  getArticleCitations,
 } from "./db-tools.js";
 
 // ---------------------------------------------------------------------------
@@ -280,6 +281,40 @@ s.tool(
     async (params) => {
       try {
         const result = findEuReferences(params);
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      } catch (e) {
+        return { content: [{ type: "text", text: `Error: ${(e as Error).message}` }], isError: true };
+      }
+    }
+  );
+
+  s.tool(
+    "get_article_citations",
+    "Get article-level citation relationships from the local Fedlex SQLite database. " +
+      "Returns which specific articles within a law cite articles in other laws (outgoing), " +
+      "and which articles in other laws cite articles in this law (incoming). " +
+      "Much more precise than law-level get_citations. " +
+      "Requires the database to have been built with 'npm run ingest'.",
+    {
+      sr_number: z.string()
+        .describe("SR number of the law (e.g. '311.0', '210', '101')"),
+      article_id: z.string().optional()
+        .describe(
+          "Filter to a single article by its HTML id (e.g. 'art_1', 'art_2a'). " +
+          "Omit to get all article citations for the law."
+        ),
+      direction: z.enum(["from", "to", "both"]).optional().default("both")
+        .describe(
+          "'from' = outgoing: articles in this law that cite others, " +
+          "'to' = incoming: articles in other laws that cite this law, " +
+          "'both' = all"
+        ),
+      limit: z.number().int().min(1).max(200).optional().default(50)
+        .describe("Maximum results per direction"),
+    },
+    async (params) => {
+      try {
+        const result = getArticleCitations(params);
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (e) {
         return { content: [{ type: "text", text: `Error: ${(e as Error).message}` }], isError: true };

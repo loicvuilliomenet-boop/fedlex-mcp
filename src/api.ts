@@ -134,6 +134,7 @@ import {
   lookupDefinition,
   findEuReferences,
   getDbStats,
+  getArticleCitations,
 } from "./db-tools.js";
 
 // GET /api/db/search?q=Datenschutzbeauftragter&limit=20&sr=235.1
@@ -168,6 +169,23 @@ router.get("/db/eu-refs", standardLimiter, (req: Request, res: Response) => {
       eu_identifier: id,
       eu_type:       type as "Directive" | "Regulation" | "Decision" | "Unknown" | undefined,
       limit:         Math.min(parseInt(limit, 10) || 30, 100),
+    });
+    res.json(result);
+  } catch (e) { logError(req.path, e); sendError(res, 500, (e as Error).message); }
+});
+
+// GET /api/db/article-citations?sr=311.0&article=art_1&direction=both&limit=50
+router.get("/db/article-citations", standardLimiter, (req: Request, res: Response) => {
+  const { sr, article, direction = "both", limit = "50" } = req.query as Record<string, string>;
+  if (!sr) return sendError(res, 400, "Missing required query parameter: sr");
+  if (!["from", "to", "both"].includes(direction))
+    return sendError(res, 400, "Invalid direction. Use: from, to, both");
+  try {
+    const result = getArticleCitations({
+      sr_number:  sr,
+      article_id: article,
+      direction:  direction as "from" | "to" | "both",
+      limit:      Math.min(parseInt(limit, 10) || 50, 200),
     });
     res.json(result);
   } catch (e) { logError(req.path, e); sendError(res, 500, (e as Error).message); }
