@@ -96,3 +96,15 @@ get_versions("220")
 get_citations("101", direction="from")
 → all currently in-force laws that cite the Federal Constitution
 ```
+
+## Disclaimer
+
+This project is an independent, experimental MCP server for accessing information derived from the Swiss Federal Chancellery's Fedlex platform. It is provided for technical and informational purposes only.
+
+- **No legal advice.** Nothing produced by this project constitutes legal advice, legal opinion, or a substitute for professional counsel.
+- **No warranty.** This software is provided **"as is"**, without warranty of any kind. Outputs may be incomplete, inaccurate, unavailable, improperly parsed, or out of date.
+- **Verify with official sources.** Users must independently verify all legal texts, references, metadata, and conclusions against the official Fedlex source before relying on them.
+- **Use at your own risk.** The author assumes no responsibility or liability for errors, omissions, downtime, misinterpretation of legal materials, or any direct or indirect consequences arising from use of this project.
+- **Third-party source dependency.** Availability and correctness depend in part on upstream Fedlex services, data formats, and network conditions, which may change without notice.
+
+By using this project, you accept that it is a best-effort tool and not an authoritative legal system of record.
