@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 loicvuilliomenet-boop
+Copyright (c) 2026 Loïc Vuilliomenet
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,3 +19,19 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+DATA NOTICE
+
+The legal texts served by this software are sourced from Fedlex
+(https://fedlex.data.admin.ch), the official publication platform of the
+Swiss Federal Chancellery. That data is published as open government data
+under the terms described at https://www.fedlex.admin.ch/en/utility/legal-information.
+
+THIS SOFTWARE IS NOT A SUBSTITUTE FOR LEGAL ADVICE. The data is provided for
+informational purposes only. While the software retrieves data directly from
+official Swiss government sources, no guarantee is made regarding the accuracy,
+completeness, or timeliness of the information. Always refer to the official
+Fedlex platform (https://www.fedlex.admin.ch) or consult a qualified legal
+professional for authoritative legal information.

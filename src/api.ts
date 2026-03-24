@@ -16,7 +16,17 @@ import { standardLimiter, heavyLimiter } from "./rateLimiter.js";
 const router = Router();
 
 function sendError(res: Response, status: number, message: string) {
-  res.status(status).json({ error: message });
+  // Sanitize internal errors to avoid leaking SPARQL endpoint details
+  const safe =
+    status >= 500
+      ? "An internal error occurred. Please try again later."
+      : message;
+  res.status(status).json({ error: safe });
+}
+
+function logError(context: string, e: unknown) {
+  // Log to stderr (server-side only) with full detail
+  console.error(`[fedlex-mcp] ${context}:`, (e as Error).message);
 }
 
 // GET /api/search?q=Datenschutz&lang=de&limit=20&in_force=true

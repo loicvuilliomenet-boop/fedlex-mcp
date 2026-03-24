@@ -559,9 +559,11 @@
 </main>
 
 <footer>
-  Data from <a href="https://fedlex.data.admin.ch" target="_blank">Fedlex</a> via SPARQL endpoint.
-  All Swiss federal legislation is open data. &nbsp;·&nbsp;
+  Data from <a href="https://fedlex.data.admin.ch" target="_blank">Fedlex</a> (Swiss Federal Chancellery) · Open government data ·
   <a href="https://github.com/loicvuilliomenet-boop/fedlex-mcp" target="_blank">GitHub ↗</a>
+  <br>
+  <strong>Not legal advice.</strong> For authoritative texts always consult
+  <a href="https://www.fedlex.admin.ch" target="_blank">www.fedlex.admin.ch</a> or a qualified legal professional.
 </footer>
 
 <script>
@@ -583,7 +585,9 @@
   }
 
   function escHtml(s) {
-    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return String(s || '')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
 
   async function apiFetch(path) {

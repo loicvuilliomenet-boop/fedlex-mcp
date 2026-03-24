@@ -52,8 +52,9 @@ export function langUri(lang: string): string {
  * Returns null if not found.
  */
 export async function srToUri(srNumber: string): Promise<string | null> {
-  // skos:notation values are typed literals; use STR() for string comparison.
-  // We prefer the most recent ELI URI when multiple exist (e.g. old + new Constitution).
+  // Validate SR number format (digits and dots only) to prevent SPARQL injection.
+  assertSrNumber(srNumber);
+
   const query = `
 PREFIX jolux: <http://data.legilux.public.lu/resource/ontology/jolux#>
 PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
@@ -63,7 +64,7 @@ SELECT DISTINCT ?uri WHERE {
   ?uri rdf:type jolux:ConsolidationAbstract ;
        jolux:classifiedByTaxonomyEntry ?entry .
   ?entry skos:notation ?notation .
-  FILTER(STR(?notation) = "${srNumber}")
+  FILTER(STR(?notation) = "${sparqlEscapeString(srNumber)}")
   ?uri jolux:dateEntryInForce ?dateInForce .
 }
 ORDER BY DESC(?dateInForce)
@@ -72,6 +73,28 @@ LIMIT 1`;
   const result = await sparqlQuery(query);
   const binding = result.results.bindings[0];
   return binding ? (val(binding, "uri") ?? null) : null;
+}
+
+/** Escape a string for safe interpolation inside a SPARQL string literal */
+export function sparqlEscapeString(s: string): string {
+  return s
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/'/g, "\\'")
+    .replace(/\n/g, "\\n")
+    .replace(/\r/g, "\\r");
+}
+
+/** Validate that a string is a safe SR number (digits and dots only) */
+export function assertSrNumber(s: string): string {
+  if (!/^[\d.]+$/.test(s)) throw new Error(`Invalid SR number format: "${s}"`);
+  return s;
+}
+
+/** Validate an ISO date string YYYY-MM-DD */
+export function assertIsoDate(s: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) throw new Error(`Invalid date format (expected YYYY-MM-DD): "${s}"`);
+  return s;
 }
 
 /** Strip HTML tags and collapse whitespace */

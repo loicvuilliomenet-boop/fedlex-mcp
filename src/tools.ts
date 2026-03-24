@@ -5,6 +5,8 @@ import {
   langUri,
   stripHtml,
   FILE_TYPE_URIS,
+  sparqlEscapeString,
+  assertIsoDate,
 } from "./sparql.js";
 
 // ---------------------------------------------------------------------------
@@ -31,7 +33,8 @@ export async function searchLegislation(params: {
   const lang = params.language ?? "de";
   const limit = Math.min(params.limit ?? 20, 100);
   const inForceOnly = params.in_force_only ?? true;
-  const keyword = params.query.replace(/"/g, "");
+  // Escape keyword for safe interpolation inside a SPARQL string literal
+  const keyword = sparqlEscapeString(params.query.slice(0, 200));
 
   const inForceFilter = inForceOnly
     ? `
@@ -241,11 +244,12 @@ export async function getLegislationText(params: {
   // Find the consolidation (version) to fetch
   let consolidationUri: string | undefined;
   if (params.version_date) {
+    const safeDate = assertIsoDate(params.version_date);
     const sparql = `
 PREFIX jolux: <http://data.legilux.public.lu/resource/ontology/jolux#>
 SELECT ?consolidation WHERE {
   ?consolidation jolux:isMemberOf <${uri}> ;
-                 jolux:dateApplicability "${params.version_date}"^^<http://www.w3.org/2001/XMLSchema#date> .
+                 jolux:dateApplicability "${safeDate}"^^<http://www.w3.org/2001/XMLSchema#date> .
 }
 LIMIT 1`;
     const r = await sparqlQuery(sparql);
@@ -301,8 +305,8 @@ LIMIT 1`;
     );
   }
 
-  // Fetch and parse the document
-  const response = await fetch(fileUrl);
+  // Fetch and parse the document (10 s timeout to avoid hanging on slow Fedlex servers)
+  const response = await fetch(fileUrl, { signal: AbortSignal.timeout(10_000) });
   if (!response.ok) {
     throw new Error(
       `Failed to fetch document: ${response.status} ${response.statusText}`

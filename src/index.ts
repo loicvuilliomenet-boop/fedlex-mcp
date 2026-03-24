@@ -3,6 +3,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import express from "express";
+import helmet from "helmet";
+import cors from "cors";
 import { fileURLToPath } from "url";
 import { join, dirname } from "path";
 import { z } from "zod";
@@ -228,6 +230,22 @@ if (useHttp) {
 
   // Trust proxy headers (needed for correct IP in rate limiting behind reverse proxies)
   app.set("trust proxy", 1);
+
+  // Security headers (CSP, HSTS, X-Frame-Options, etc.)
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"], // inline scripts in index.html
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:"],
+        connectSrc: ["'self'"],
+      },
+    },
+  }));
+
+  // CORS: allow all origins for the public API (read-only, no auth)
+  app.use("/api", cors({ origin: "*", methods: ["GET"] }));
 
   // Serve the web client
   const __dir = dirname(fileURLToPath(import.meta.url));
