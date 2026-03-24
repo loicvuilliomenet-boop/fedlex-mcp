@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fedlex MCP — Swiss Federal Legislation</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --red: #d62b2b;
+      --red-dark: #a01e1e;
+      --bg: #f5f5f5;
+      --surface: #ffffff;
+      --border: #ddd;
+      --text: #1a1a1a;
+      --muted: #666;
+      --code-bg: #f0f0f0;
+      --radius: 8px;
+      --shadow: 0 2px 8px rgba(0,0,0,.08);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--red);
+      color: #fff;
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,.2);
+    }
+    header .logo {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    header .subtitle {
+      font-size: .85rem;
+      opacity: .85;
+    }
+    header .flag { font-size: 1.8rem; }
+
+    main {
+      max-width: 960px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+    }
+
+    .tabs {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+    .tab {
+      padding: .5rem 1.1rem;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: .9rem;
+      transition: all .15s;
+    }
+    .tab:hover { border-color: var(--red); color: var(--red); }
+    .tab.active { background: var(--red); color: #fff; border-color: var(--red); font-weight: 600; }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .form-row {
+      display: flex;
+      gap: .75rem;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      margin-bottom: 1rem;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: .3rem;
+    }
+    .form-group label {
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+    input, select {
+      padding: .55rem .8rem;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      font-size: .95rem;
+      outline: none;
+      transition: border-color .15s;
+      background: var(--surface);
+    }
+    input:focus, select:focus { border-color: var(--red); }
+    input.wide { width: 340px; max-width: 100%; }
+    input.medium { width: 160px; }
+    input.small { width: 90px; }
+
+    button {
+      padding: .55rem 1.4rem;
+      background: var(--red);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: .95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+      white-space: nowrap;
+    }
+    button:hover { background: var(--red-dark); }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    #results {
+      margin-top: 1rem;
+    }
+
+    .result-list { list-style: none; }
+    .result-item {
+      padding: .8rem 1rem;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: .5rem;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+    .result-item:hover { border-color: var(--red); background: #fff8f8; }
+    .result-item .sr { font-weight: 700; color: var(--red); font-size: .9rem; min-width: 60px; }
+    .result-item .title { flex: 1; font-size: .9rem; line-height: 1.4; }
+    .result-item .abbr { font-size: .8rem; color: var(--muted); white-space: nowrap; }
+
+    .detail-panel {
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .detail-header {
+      background: #fafafa;
+      padding: 1rem 1.2rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+    .detail-header h2 { font-size: 1rem; line-height: 1.4; }
+    .detail-header .sr-badge {
+      background: var(--red);
+      color: #fff;
+      padding: .2rem .6rem;
+      border-radius: 12px;
+      font-size: .8rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .detail-body { padding: 1.2rem; }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .5rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .meta-item label {
+      font-size: .75rem;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .meta-item span { font-size: .9rem; }
+
+    .action-bar {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+    .action-btn {
+      padding: .4rem .9rem;
+      font-size: .83rem;
+      background: transparent;
+      color: var(--red);
+      border: 1.5px solid var(--red);
+      font-weight: 600;
+    }
+    .action-btn:hover { background: var(--red); color: #fff; }
+
+    .dl-list { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .5rem; }
+    .dl-link {
+      display: inline-block;
+      padding: .25rem .7rem;
+      border-radius: 4px;
+      font-size: .8rem;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1.5px solid;
+    }
+    .dl-link.pdf { color: #c0392b; border-color: #c0392b; }
+    .dl-link.html { color: #2980b9; border-color: #2980b9; }
+    .dl-link.xml { color: #27ae60; border-color: #27ae60; }
+    .dl-link.docx { color: #8e44ad; border-color: #8e44ad; }
+    .dl-link:hover { background: currentColor; color: #fff; }
+
+    .text-block {
+      font-size: .88rem;
+      line-height: 1.7;
+      max-height: 500px;
+      overflow-y: auto;
+      background: var(--code-bg);
+      border-radius: var(--radius);
+      padding: 1rem;
+      white-space: pre-wrap;
+      font-family: "Menlo", "Monaco", monospace;
+      margin-top: .75rem;
+    }
+
+    .versions-list, .citations-list { list-style: none; }
+    .version-item {
+      padding: .5rem .8rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: .4rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: .88rem;
+    }
+    .version-item .date { font-weight: 600; }
+    .version-item .fetch-btn {
+      padding: .2rem .6rem;
+      font-size: .78rem;
+    }
+
+    .citation-item {
+      padding: .5rem .8rem;
+      border-left: 3px solid var(--red);
+      margin-bottom: .4rem;
+      font-size: .88rem;
+      line-height: 1.4;
+      background: #fafafa;
+      border-radius: 0 6px 6px 0;
+    }
+    .citation-item .c-sr { font-weight: 700; color: var(--red); margin-right: .5rem; }
+    .citation-item .c-art { font-size: .78rem; color: var(--muted); }
+
+    .section-title {
+      font-size: .8rem;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      color: var(--muted);
+      font-weight: 700;
+      margin: 1rem 0 .5rem;
+    }
+
+    .status {
+      font-size: .88rem;
+      color: var(--muted);
+      padding: .5rem 0;
+    }
+    .error-msg {
+      color: var(--red);
+      font-size: .9rem;
+      padding: .5rem;
+      background: #fff0f0;
+      border-radius: 6px;
+      border-left: 3px solid var(--red);
+    }
+    .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid #ddd;
+      border-top-color: var(--red);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      vertical-align: middle;
+      margin-right: .4rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .api-info {
+      font-size: .82rem;
+      color: var(--muted);
+      margin-top: 1rem;
+      padding: .75rem 1rem;
+      background: var(--code-bg);
+      border-radius: var(--radius);
+      font-family: monospace;
+    }
+    .api-info strong { color: var(--text); }
+
+    .count-badge {
+      display: inline-block;
+      background: #eee;
+      color: var(--muted);
+      border-radius: 12px;
+      padding: .1rem .6rem;
+      font-size: .78rem;
+      margin-left: .5rem;
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--muted);
+      font-size: .8rem;
+    }
+    footer a { color: var(--red); text-decoration: none; }
+
+    @media (max-width: 600px) {
+      .meta-grid { grid-template-columns: 1fr; }
+      input.wide { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="flag">🇨🇭</span>
+  <div>
+    <div class="logo">Fedlex MCP</div>
+    <div class="subtitle">Swiss Federal Legislation — All Acts &amp; Ordinances</div>
+  </div>
+</header>
+
+<main>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('search')">Search</button>
+    <button class="tab" onclick="switchTab('browse')">Browse All</button>
+    <button class="tab" onclick="switchTab('lookup')">Law Detail</button>
+    <button class="tab" onclick="switchTab('text')">Full Text</button>
+    <button class="tab" onclick="switchTab('versions')">Versions</button>
+    <button class="tab" onclick="switchTab('citations')">Citations</button>
+    <button class="tab" onclick="switchTab('api')">API</button>
+  </div>
+
+  <!-- SEARCH -->
+  <div class="card section active" id="tab-search">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Keyword</label>
+        <input class="wide" type="text" id="s-query" placeholder="e.g. Datenschutz, FINMA, Arbeitsgesetz…" />
+      </div>
+      <div class="form-group">
+        <label>Language</label>
+        <select id="s-lang">
+          <option value="de">Deutsch</option>
+          <option value="fr">Français</option>
+          <option value="it">Italiano</option>
+          <option value="rm">Rumantsch</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Limit</label>
+        <input class="small" type="number" id="s-limit" value="20" min="1" max="100" />
+      </div>
+      <div class="form-group">
+        <label>In-force only</label>
+        <select id="s-inforce">
+          <option value="true">Yes</option>
+          <option value="false">No</option>
+        </select>
+      </div>
+      <button onclick="doSearch()">Search</button>
+    </div>
+    <div id="search-results"></div>
+  </div>
+
+  <!-- BROWSE -->
+  <div class="card section" id="tab-browse">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Language</label>
+        <select id="b-lang">
+          <option value="de">Deutsch</option>
+          <option value="fr">Français</option>
+          <option value="it">Italiano</option>
+          <option value="rm">Rumantsch</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Per page</label>
+        <input class="small" type="number" id="b-limit" value="50" min="1" max="200" />
+      </div>
+      <div class="form-group">
+        <label>Offset</label>
+        <input class="small" type="number" id="b-offset" value="0" min="0" />
+      </div>
+      <div class="form-group">
+        <label>In-force only</label>
+        <select id="b-inforce">
+          <option value="true">Yes</option>
+          <option value="false">No</option>
+        </select>
+      </div>
+      <button onclick="doBrowse()">List</button>
+    </div>
+    <div id="browse-results"></div>
+  </div>
+
+  <!-- LAW DETAIL -->
+  <div class="card section" id="tab-lookup">
+    <div class="form-row">
+      <div class="form-group">
+        <label>SR Number or ELI URI</label>
+        <input class="wide" type="text" id="l-id" placeholder="e.g. 101  /  210  /  311.0  /  220" />
+      </div>
+      <div class="form-group">
+        <label>Language</label>
+        <select id="l-lang">
+          <option value="de">Deutsch</option>
+          <option value="fr">Français</option>
+          <option value="it">Italiano</option>
+          <option value="rm">Rumantsch</option>
+        </select>
+      </div>
+      <button onclick="doLookup()">Get</button>
+    </div>
+    <div id="lookup-results"></div>
+  </div>
+
+  <!-- FULL TEXT -->
+  <div class="card section" id="tab-text">
+    <div class="form-row">
+      <div class="form-group">
+        <label>SR Number or ELI URI</label>
+        <input class="wide" type="text" id="t-id" placeholder="e.g. 101  or  311.0" />
+      </div>
+      <div class="form-group">
+        <label>Language</label>
+        <select id="t-lang">
+          <option value="de">Deutsch</option>
+          <option value="fr">Français</option>
+          <option value="it">Italiano</option>
+          <option value="rm">Rumantsch</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Format</label>
+        <select id="t-format">
+          <option value="html">Plain text (from HTML)</option>
+          <option value="xml">XML (Akoma Ntoso)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Version date (optional)</label>
+        <input class="medium" type="date" id="t-version" placeholder="YYYY-MM-DD" />
+      </div>
+      <button onclick="doText()">Fetch</button>
+    </div>
+    <div id="text-results"></div>
+  </div>
+
+  <!-- VERSIONS -->
+  <div class="card section" id="tab-versions">
+    <div class="form-row">
+      <div class="form-group">
+        <label>SR Number or ELI URI</label>
+        <input class="wide" type="text" id="v-id" placeholder="e.g. 220  (Code of Obligations)" />
+      </div>
+      <button onclick="doVersions()">Get Versions</button>
+    </div>
+    <div id="versions-results"></div>
+  </div>
+
+  <!-- CITATIONS -->
+  <div class="card section" id="tab-citations">
+    <div class="form-row">
+      <div class="form-group">
+        <label>SR Number or ELI URI</label>
+        <input class="wide" type="text" id="c-id" placeholder="e.g. 101  (Federal Constitution)" />
+      </div>
+      <div class="form-group">
+        <label>Direction</label>
+        <select id="c-dir">
+          <option value="both">Both</option>
+          <option value="from">Cited by (← who cites this)</option>
+          <option value="to">Cites (→ what this cites)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Language</label>
+        <select id="c-lang">
+          <option value="de">Deutsch</option>
+          <option value="fr">Français</option>
+          <option value="it">Italiano</option>
+          <option value="rm">Rumantsch</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Limit</label>
+        <input class="small" type="number" id="c-limit" value="50" min="1" max="200" />
+      </div>
+      <button onclick="doCitations()">Get</button>
+    </div>
+    <div id="citations-results"></div>
+  </div>
+
+  <!-- API DOCS -->
+  <div class="card section" id="tab-api">
+    <h3 style="margin-bottom:1rem">REST API Reference</h3>
+    <p style="font-size:.9rem;color:var(--muted);margin-bottom:1rem">
+      All endpoints return JSON. Rate limits: <strong>30 req/min</strong> (standard), <strong>10 req/min</strong> (text fetch).
+    </p>
+
+    <div class="section-title">Search</div>
+    <div class="api-info"><strong>GET</strong> /api/search?q=<em>keyword</em>&amp;lang=de&amp;limit=20&amp;in_force=true</div>
+
+    <div class="section-title">List all</div>
+    <div class="api-info"><strong>GET</strong> /api/list?lang=de&amp;limit=50&amp;offset=0&amp;in_force=true</div>
+
+    <div class="section-title">Law metadata</div>
+    <div class="api-info"><strong>GET</strong> /api/legislation/<em>:sr_number</em>?lang=de<br>
+    <em>Example: /api/legislation/101?lang=fr</em></div>
+
+    <div class="section-title">Full text</div>
+    <div class="api-info"><strong>GET</strong> /api/text/<em>:sr_number</em>?lang=de&amp;format=html&amp;version=2024-01-01<br>
+    <em>format: html (plain text) | xml (Akoma Ntoso)</em></div>
+
+    <div class="section-title">Historical versions</div>
+    <div class="api-info"><strong>GET</strong> /api/versions/<em>:sr_number</em></div>
+
+    <div class="section-title">Citation network</div>
+    <div class="api-info"><strong>GET</strong> /api/citations/<em>:sr_number</em>?direction=both&amp;lang=de&amp;limit=50<br>
+    <em>direction: from | to | both</em></div>
+
+    <div class="section-title">MCP SSE endpoint (for AI assistants)</div>
+    <div class="api-info"><strong>GET</strong> /sse &nbsp;→&nbsp; SSE stream<br>
+    <strong>POST</strong> /messages?sessionId=<em>id</em> &nbsp;→&nbsp; send MCP messages</div>
+
+    <div class="section-title">Health</div>
+    <div class="api-info"><strong>GET</strong> /health</div>
+  </div>
+</main>
+
+<footer>
+  Data from <a href="https://fedlex.data.admin.ch" target="_blank">Fedlex</a> via SPARQL endpoint.
+  All Swiss federal legislation is open data. &nbsp;·&nbsp;
+  <a href="https://github.com/loicvuilliomenet-boop/fedlex-mcp" target="_blank">GitHub ↗</a>
+</footer>
+
+<script>
+  const BASE = '';
+
+  function switchTab(name) {
+    document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    event.target.classList.add('active');
+  }
+
+  function loading(el) {
+    el.innerHTML = '<span class="spinner"></span><span class="status">Loading…</span>';
+  }
+
+  function apiError(el, msg) {
+    el.innerHTML = `<div class="error-msg">${escHtml(msg)}</div>`;
+  }
+
+  function escHtml(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  async function apiFetch(path) {
+    const res = await fetch(BASE + path);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    return data;
+  }
+
+  function renderList(items, targetTab) {
+    if (!items.length) return '<p class="status">No results found.</p>';
+    return `<ul class="result-list">` +
+      items.map(r => `
+        <li class="result-item" onclick="openLaw('${escHtml(r.sr_number)}', '${targetTab}')">
+          <span class="sr">${escHtml(r.sr_number)}</span>
+          <span class="title">${escHtml(r.title)}</span>
+          ${r.abbreviation ? `<span class="abbr">${escHtml(r.abbreviation)}</span>` : ''}
+        </li>`).join('') +
+      `</ul>`;
+  }
+
+  function openLaw(srNumber, fromTab) {
+    document.getElementById('l-id').value = srNumber;
+    document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-lookup').classList.add('active');
+    document.querySelectorAll('.tab')[2].classList.add('active');
+    doLookup();
+  }
+
+  // ---- Search ----
+  async function doSearch() {
+    const el = document.getElementById('search-results');
+    const q = document.getElementById('s-query').value.trim();
+    if (!q) { apiError(el, 'Please enter a search keyword.'); return; }
+    loading(el);
+    try {
+      const params = new URLSearchParams({
+        q, lang: document.getElementById('s-lang').value,
+        limit: document.getElementById('s-limit').value,
+        in_force: document.getElementById('s-inforce').value,
+      });
+      const data = await apiFetch('/api/search?' + params);
+      el.innerHTML = `<p class="status">Found <strong>${data.count}</strong> result(s)</p>` + renderList(data.results, 'search');
+    } catch (e) { apiError(el, e.message); }
+  }
+
+  // ---- Browse ----
+  async function doBrowse() {
+    const el = document.getElementById('browse-results');
+    loading(el);
+    try {
+      const params = new URLSearchParams({
+        lang: document.getElementById('b-lang').value,
+        limit: document.getElementById('b-limit').value,
+        offset: document.getElementById('b-offset').value,
+        in_force: document.getElementById('b-inforce').value,
+      });
+      const data = await apiFetch('/api/list?' + params);
+      el.innerHTML = `<p class="status"><strong>${data.count}</strong> laws (offset ${data.offset})</p>` + renderList(data.results, 'browse');
+    } catch (e) { apiError(el, e.message); }
+  }
+
+  // ---- Lookup ----
+  async function doLookup() {
+    const el = document.getElementById('lookup-results');
+    const id = document.getElementById('l-id').value.trim();
+    if (!id) { apiError(el, 'Please enter an SR number or ELI URI.'); return; }
+    loading(el);
+    try {
+      const lang = document.getElementById('l-lang').value;
+      const data = await apiFetch(`/api/legislation/${encodeURIComponent(id)}?lang=${lang}`);
+
+      const dlHtml = (data.download_links || []).map(l => {
+        const fmt = l.format.toLowerCase();
+        return `<a class="dl-link ${fmt}" href="${escHtml(l.url)}" target="_blank">${escHtml(l.format)}</a>`;
+      }).join('');
+
+      el.innerHTML = `
+        <div class="detail-panel">
+          <div class="detail-header">
+            <h2>${escHtml(data.title)}</h2>
+            <span class="sr-badge">SR ${escHtml(data.sr_number)}</span>
+          </div>
+          <div class="detail-body">
+            <div class="meta-grid">
+              <div class="meta-item"><label>Abbreviation</label><span>${escHtml(data.abbreviation || '—')}</span></div>
+              <div class="meta-item"><label>In force since</label><span>${escHtml(data.date_entry_in_force || '—')}</span></div>
+              <div class="meta-item"><label>No longer in force</label><span>${escHtml(data.date_no_longer_in_force || 'Still in force')}</span></div>
+              <div class="meta-item"><label>Latest version</label><span>${escHtml(data.latest_consolidation?.date || '—')}</span></div>
+            </div>
+            ${dlHtml ? `<div class="section-title">Downloads</div><div class="dl-list">${dlHtml}</div>` : ''}
+            <div class="action-bar">
+              <button class="action-btn" onclick="quickText('${escHtml(id)}')">Read full text</button>
+              <button class="action-btn" onclick="quickVersions('${escHtml(id)}')">View versions</button>
+              <button class="action-btn" onclick="quickCitations('${escHtml(id)}')">Citations</button>
+              <a class="action-btn" style="text-decoration:none;display:inline-block" href="${escHtml(data.fedlex_url)}" target="_blank">Open on Fedlex ↗</a>
+            </div>
+          </div>
+        </div>`;
+    } catch (e) { apiError(el, e.message); }
+  }
+
+  function quickText(id) {
+    document.getElementById('t-id').value = id;
+    document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-text').classList.add('active');
+    document.querySelectorAll('.tab')[3].classList.add('active');
+    doText();
+  }
+  function quickVersions(id) {
+    document.getElementById('v-id').value = id;
+    document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-versions').classList.add('active');
+    document.querySelectorAll('.tab')[4].classList.add('active');
+    doVersions();
+  }
+  function quickCitations(id) {
+    document.getElementById('c-id').value = id;
+    document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-citations').classList.add('active');
+    document.querySelectorAll('.tab')[5].classList.add('active');
+    doCitations();
+  }
+
+  // ---- Full text ----
+  async function doText() {
+    const el = document.getElementById('text-results');
+    const id = document.getElementById('t-id').value.trim();
+    if (!id) { apiError(el, 'Please enter an SR number or ELI URI.'); return; }
+    loading(el);
+    try {
+      const params = new URLSearchParams({
+        lang: document.getElementById('t-lang').value,
+        format: document.getElementById('t-format').value,
+      });
+      const v = document.getElementById('t-version').value;
+      if (v) params.set('version', v);
+      const data = await apiFetch(`/api/text/${encodeURIComponent(id)}?${params}`);
+      el.innerHTML = `
+        <p class="status">
+          <strong>${escHtml(data.language?.toUpperCase())}</strong> ·
+          ${escHtml(data.format?.toUpperCase())} ·
+          ${data.total_length?.toLocaleString()} chars
+          ${data.truncated ? ' <em>(truncated at 100 000 chars)</em>' : ''}
+        </p>
+        <div class="text-block">${escHtml(data.text)}</div>`;
+    } catch (e) { apiError(el, e.message); }
+  }
+
+  // ---- Versions ----
+  async function doVersions() {
+    const el = document.getElementById('versions-results');
+    const id = document.getElementById('v-id').value.trim();
+    if (!id) { apiError(el, 'Please enter an SR number or ELI URI.'); return; }
+    loading(el);
+    try {
+      const data = await apiFetch(`/api/versions/${encodeURIComponent(id)}`);
+      el.innerHTML = `<p class="status"><strong>${data.version_count}</strong> consolidation(s)</p>
+        <ul class="versions-list">
+          ${data.versions.map(v => `
+            <li class="version-item">
+              <span class="date">${escHtml(v.date)}</span>
+              <button class="fetch-btn" onclick="fetchVersion('${escHtml(id)}','${escHtml(v.date)}')">Read this version</button>
+            </li>`).join('')}
+        </ul>`;
+    } catch (e) { apiError(el, e.message); }
+  }
+
+  function fetchVersion(id, date) {
+    document.getElementById('t-id').value = id;
+    document.getElementById('t-version').value = date;
+    document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-text').classList.add('active');
+    document.querySelectorAll('.tab')[3].classList.add('active');
+    doText();
+  }
+
+  // ---- Citations ----
+  async function doCitations() {
+    const el = document.getElementById('citations-results');
+    const id = document.getElementById('c-id').value.trim();
+    if (!id) { apiError(el, 'Please enter an SR number or ELI URI.'); return; }
+    loading(el);
+    try {
+      const params = new URLSearchParams({
+        direction: document.getElementById('c-dir').value,
+        lang: document.getElementById('c-lang').value,
+        limit: document.getElementById('c-limit').value,
+      });
+      const data = await apiFetch(`/api/citations/${encodeURIComponent(id)}?${params}`);
+
+      let html = '';
+      if (data.cited_by?.length) {
+        html += `<div class="section-title">Cited by <span class="count-badge">${data.cited_by.length}</span></div>
+          <ul class="citations-list">
+            ${data.cited_by.map(c => `<li class="citation-item">
+              <span class="c-sr" style="cursor:pointer" onclick="openLaw('${escHtml(c.sr_number)}','')">${escHtml(c.sr_number)}</span>
+              ${escHtml(c.title)}
+              ${c.article ? `<span class="c-art"> — Art. ${escHtml(c.article)}</span>` : ''}
+            </li>`).join('')}
+          </ul>`;
+      }
+      if (data.cites?.length) {
+        html += `<div class="section-title">Cites <span class="count-badge">${data.cites.length}</span></div>
+          <ul class="citations-list">
+            ${data.cites.map(c => `<li class="citation-item">
+              <span class="c-sr" style="cursor:pointer" onclick="openLaw('${escHtml(c.sr_number)}','')">${escHtml(c.sr_number)}</span>
+              ${escHtml(c.title)}
+              ${c.article ? `<span class="c-art"> — Art. ${escHtml(c.article)}</span>` : ''}
+            </li>`).join('')}
+          </ul>`;
+      }
+      if (!html) html = '<p class="status">No citations found.</p>';
+      el.innerHTML = html;
+    } catch (e) { apiError(el, e.message); }
+  }
+
+  // Enter key support
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const active = document.querySelector('.section.active');
+    if (!active) return;
+    if (active.id === 'tab-search') doSearch();
+    else if (active.id === 'tab-browse') doBrowse();
+    else if (active.id === 'tab-lookup') doLookup();
+    else if (active.id === 'tab-text') doText();
+    else if (active.id === 'tab-versions') doVersions();
+    else if (active.id === 'tab-citations') doCitations();
+  });
+</script>
+</body>
+</html>
