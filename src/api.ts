@@ -31,7 +31,7 @@ function logError(context: string, e: unknown) {
 
 // GET /api/search?q=Datenschutz&lang=de&limit=20&in_force=true
 router.get("/search", standardLimiter, async (req: Request, res: Response) => {
-  const { q, lang = "de", limit = "20", in_force = "true" } = req.query as Record<string, string>;
+  const { q, lang = "fr", limit = "20", in_force = "true" } = req.query as Record<string, string>;
   if (!q) return sendError(res, 400, "Missing required query parameter: q");
   if (!["de", "fr", "it", "rm"].includes(lang)) return sendError(res, 400, "Invalid lang. Use: de, fr, it, rm");
   try {
@@ -49,7 +49,7 @@ router.get("/search", standardLimiter, async (req: Request, res: Response) => {
 
 // GET /api/list?lang=de&limit=50&offset=0&in_force=true
 router.get("/list", standardLimiter, async (req: Request, res: Response) => {
-  const { lang = "de", limit = "50", offset = "0", in_force = "true" } = req.query as Record<string, string>;
+  const { lang = "fr", limit = "50", offset = "0", in_force = "true" } = req.query as Record<string, string>;
   if (!["de", "fr", "it", "rm"].includes(lang)) return sendError(res, 400, "Invalid lang");
   try {
     const result = await listLegislation({
@@ -66,7 +66,7 @@ router.get("/list", standardLimiter, async (req: Request, res: Response) => {
 
 // GET /api/legislation/:id?lang=de    (id = SR number or ELI URI segment)
 router.get("/legislation/:id(*)", standardLimiter, async (req: Request, res: Response) => {
-  const { lang = "de" } = req.query as Record<string, string>;
+  const { lang = "fr" } = req.query as Record<string, string>;
   const identifier = req.params.id;
   if (!["de", "fr", "it", "rm"].includes(lang)) return sendError(res, 400, "Invalid lang");
   try {
@@ -79,7 +79,7 @@ router.get("/legislation/:id(*)", standardLimiter, async (req: Request, res: Res
 
 // GET /api/text/:id?lang=de&format=html&version=2024-01-01
 router.get("/text/:id(*)", heavyLimiter, async (req: Request, res: Response) => {
-  const { lang = "de", format = "html", version } = req.query as Record<string, string>;
+  const { lang = "fr", format = "html", version } = req.query as Record<string, string>;
   const identifier = req.params.id;
   if (!["de", "fr", "it", "rm"].includes(lang)) return sendError(res, 400, "Invalid lang");
   if (!["html", "xml"].includes(format)) return sendError(res, 400, "Invalid format. Use: html, xml");
@@ -109,7 +109,7 @@ router.get("/versions/:id(*)", standardLimiter, async (req: Request, res: Respon
 
 // GET /api/citations/:id?direction=both&lang=de&limit=50
 router.get("/citations/:id(*)", standardLimiter, async (req: Request, res: Response) => {
-  const { lang = "de", direction = "both", limit = "50" } = req.query as Record<string, string>;
+  const { lang = "fr", direction = "both", limit = "50" } = req.query as Record<string, string>;
   const identifier = req.params.id;
   if (!["de", "fr", "it", "rm"].includes(lang)) return sendError(res, 400, "Invalid lang");
   if (!["from", "to", "both"].includes(direction)) return sendError(res, 400, "Invalid direction. Use: from, to, both");

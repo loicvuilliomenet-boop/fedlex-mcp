@@ -25,7 +25,7 @@ Every tool that takes an `identifier` accepts either:
 
 ### Languages
 
-All tools support `language: "de" | "fr" | "it" | "rm"` (default: `"de"`).
+All tools support `language: "fr" | "de" | "it" | "rm"` (default: `"fr"`).
 
 ## Usage
 
@@ -83,20 +83,23 @@ All data comes from the Swiss Federal Chancellery's [Fedlex platform](https://fe
 ## Examples
 
 ```
-search_legislation("Datenschutz", language="de")
-→ finds FADP (Federal Act on Data Protection) and related ordinances
+search_legislation("protection des données")
+→ finds the LPD (SR 235.1) and related ordinances (default: French)
 
-get_legislation("235.1", language="fr")
-→ metadata for the LPD (Loi sur la protection des données)
+get_legislation("235.1")
+→ metadata for the LPD (Loi fédérale sur la protection des données)
 
-get_legislation_text("311.0", language="de")
-→ full text of the Swiss Criminal Code (StGB)
+get_legislation_text("311.0", language="fr")
+→ full text of the Code pénal suisse (CP)
 
 get_versions("220")
-→ lists all 80+ historical versions of the Code of Obligations
+→ all historical versions of the Code des obligations
 
-get_citations("101", direction="from")
-→ all currently in-force laws that cite the Federal Constitution
+get_citations("101", direction="from", language="fr")
+→ all currently in-force laws that cite the Constitution fédérale
+
+search_legislation("Datenschutz", language="de")
+→ same search in German (override the default)
 ```
 
 ## Disclaimer

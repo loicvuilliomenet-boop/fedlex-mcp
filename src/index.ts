@@ -39,7 +39,7 @@ s.tool(
     language: z
       .enum(["de", "fr", "it", "rm"])
       .optional()
-      .default("de")
+      .default("fr")
       .describe("Language for titles: de (German), fr (French), it (Italian), rm (Romansh)"),
     limit: z
       .number()
@@ -70,7 +70,7 @@ s.tool(
     language: z
       .enum(["de", "fr", "it", "rm"])
       .optional()
-      .default("de")
+      .default("fr")
       .describe("Language for titles"),
     in_force_only: z
       .boolean()
@@ -116,7 +116,7 @@ s.tool(
     language: z
       .enum(["de", "fr", "it", "rm"])
       .optional()
-      .default("de")
+      .default("fr")
       .describe("Language for title and abbreviation"),
   },
   async (params) => {
@@ -140,7 +140,7 @@ s.tool(
     language: z
       .enum(["de", "fr", "it", "rm"])
       .optional()
-      .default("de")
+      .default("fr")
       .describe("Language of the text to fetch"),
     version_date: z
       .string()
@@ -203,7 +203,7 @@ s.tool(
     language: z
       .enum(["de", "fr", "it", "rm"])
       .optional()
-      .default("de")
+      .default("fr")
       .describe("Language for law titles in results"),
     limit: z
       .number()

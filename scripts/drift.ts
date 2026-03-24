@@ -29,7 +29,7 @@ const getArg = (flag: string, fallback: string) =>
   (() => { const i = args.indexOf(flag); return i !== -1 ? args[i + 1] : fallback; })();
 
 const DB_PATH   = process.env.FEDLEX_DB_PATH ?? getArg("--db", DEFAULT_DB);
-const LANG_CODE = getArg("--lang", "de");
+const LANG_CODE = getArg("--lang", "fr");
 const JSON_OUT  = args.includes("--json");
 
 const LANG_URI: Record<string, string> = {
@@ -70,7 +70,7 @@ async function main() {
   console.log(`🔍 Checking live Fedlex SPARQL for drift…\n`);
 
   // Query live latest consolidation dates for all laws
-  const langUri = LANG_URI[LANG_CODE] ?? LANG_URI["de"];
+  const langUri = LANG_URI[LANG_CODE] ?? LANG_URI["fr"];
   let offset = 0;
   const pageSize = 2000;
   const liveMap = new Map<string, string>();

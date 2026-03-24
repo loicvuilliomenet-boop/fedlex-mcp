@@ -44,7 +44,7 @@ export function val(
 }
 
 export function langUri(lang: string): string {
-  return LANGUAGE_URIS[lang] ?? LANGUAGE_URIS["de"];
+  return LANGUAGE_URIS[lang] ?? LANGUAGE_URIS["fr"];
 }
 
 /**

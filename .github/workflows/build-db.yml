@@ -9,7 +9,7 @@ on:
       language:
         description: "Language to ingest (de / fr / it)"
         required: false
-        default: "de"
+        default: "fr"
       concurrency:
         description: "Parallel HTML fetches"
         required: false

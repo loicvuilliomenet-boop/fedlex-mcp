@@ -30,7 +30,7 @@ export async function searchLegislation(params: {
   limit?: number;
   in_force_only?: boolean;
 }): Promise<object> {
-  const lang = params.language ?? "de";
+  const lang = params.language ?? "fr";
   const limit = Math.min(params.limit ?? 20, 100);
   const inForceOnly = params.in_force_only ?? true;
   // Escape keyword for safe interpolation inside a SPARQL string literal
@@ -86,7 +86,7 @@ export async function listLegislation(params: {
   limit?: number;
   offset?: number;
 }): Promise<object> {
-  const lang = params.language ?? "de";
+  const lang = params.language ?? "fr";
   const limit = Math.min(params.limit ?? 50, 200);
   const offset = params.offset ?? 0;
   const inForceOnly = params.in_force_only ?? true;
@@ -142,7 +142,7 @@ export async function getLegislation(params: {
   identifier: string;
   language?: string;
 }): Promise<object> {
-  const lang = params.language ?? "de";
+  const lang = params.language ?? "fr";
   const uri = await resolveUri(params.identifier);
 
   const sparql = `
@@ -237,7 +237,7 @@ export async function getLegislationText(params: {
   version_date?: string;
   format?: "html" | "xml";
 }): Promise<object> {
-  const lang = params.language ?? "de";
+  const lang = params.language ?? "fr";
   const preferredFormat = params.format ?? "html";
   const uri = await resolveUri(params.identifier);
 
@@ -365,7 +365,7 @@ export async function getCitations(params: {
   language?: string;
   limit?: number;
 }): Promise<object> {
-  const lang = params.language ?? "de";
+  const lang = params.language ?? "fr";
   const direction = params.direction ?? "both";
   const limit = Math.min(params.limit ?? 50, 200);
   const uri = await resolveUri(params.identifier);

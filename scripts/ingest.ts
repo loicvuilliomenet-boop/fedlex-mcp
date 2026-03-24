@@ -31,7 +31,7 @@ const getArg = (flag: string, fallback: string) => {
 };
 
 const DB_PATH = process.env.FEDLEX_DB_PATH ?? getArg("--db", DEFAULT_DB);
-const LANG    = getArg("--lang", "de");
+const LANG    = getArg("--lang", "fr");
 const CONCURRENCY = parseInt(getArg("--concurrency", "5"), 10);
 
 const LANG_URI: Record<string, string> = {
@@ -323,7 +323,7 @@ interface LawMeta {
 
 async function fetchAllLaws(lang: string): Promise<LawMeta[]> {
   console.log("⚡ Querying all ConsolidationAbstract entries from Fedlex SPARQL…");
-  const langUri = LANG_URI[lang] ?? LANG_URI["de"];
+  const langUri = LANG_URI[lang] ?? LANG_URI["fr"];
   const laws: LawMeta[] = [];
   let offset = 0;
   const pageSize = 2000;
@@ -389,7 +389,7 @@ async function fetchConsolidations(
   lang: string
 ): Promise<Map<string, ConsolidationInfo>> {
   if (uris.length === 0) return new Map();
-  const langUri = LANG_URI[lang] ?? LANG_URI["de"];
+  const langUri = LANG_URI[lang] ?? LANG_URI["fr"];
   const valuesClause = uris.map((u) => `<${u}>`).join(" ");
 
   const q = `
